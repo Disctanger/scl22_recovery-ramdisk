@@ -33,35 +33,6 @@ serial="$2"
 PATH=/sbin:/system/sbin:/system/bin:/system/xbin
 export PATH
 
-## [BEGIN] system_sw.sa: check the existence of necessary symbolic links in /system/etc/firmware
-linksCreated=1
-cd /firmware/image
-testfiles=`ls modem* adsp* wcnss* mba* tima* lkmauth* venus* widevine* playread* dtcpip* skm* keymaste* sshdcpap* sec_stor* mc_v2*`
-
-cd /system/etc/firmware
-# Note: You can add requisite link names to extrafiles variable.
-extrafiles='wcd9320/wcd9320_mbhc.bin ../thermald.conf ../thermal-engine.conf'
-testfiles=$testfiles' '$extrafiles
-
-for testfile in $testfiles; do
-   case `ls $testfile` in
-      $testfile)
-         #echo "  file: $testfile" > /dev/kmsg
-         continue;;
-      *)
-         echo "init: /init.qcom.syspart_fixup.sh: continuing because '${testfile}' doesn't exist." > /dev/kmsg
-         linksCreated=0
-         break;;
-   esac
-done
-
-if [ "$linksCreated" = "1" ]; then
-	#touch /system/etc/boot_fixup
-	echo "init: /init.qcom.syspart_fixup.sh: skipping because symbolic links are alreay created." > /dev/kmsg
-	exit 0
-fi
-## [END] system_sw.sa
-
 # This should be the first command
 # remount system as read-write.
 mount -o rw,remount,barrier=1 /system

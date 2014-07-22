@@ -2,6 +2,7 @@ import /init.recovery.${ro.hardware}.rc
 
 on early-init
     start ueventd
+    start healthd
 
 on init
     export PATH /sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin
@@ -9,8 +10,15 @@ on init
     export ANDROID_DATA /data
     export EXTERNAL_STORAGE /sdcard
 
+##++ Security R&D Group
+    export LD_LIBRARY_PATH /system/vendor/lib:/system/lib
+##-- Security R&D Group
+
+    symlink /system/etc /etc
+
     mkdir /sdcard
     mkdir /sdcard1
+    mkdir /.system
     mkdir /system
     mkdir /data
     mkdir /cache
@@ -18,17 +26,16 @@ on init
     mkdir /custom
     mkdir /efs
     mkdir /tmp
+
     mkdir /firmware 0711 system system
+
+    mount /tmp /tmp tmpfs
 
     chown root shell /tmp
     chmod 0775 /tmp
 
 # for lkmauth
     mount vfat /dev/block/platform/msm_sdcc.1/by-name/apnhlos /firmware ro
-
-# ko files for exfat
-    insmod /lib/modules/exfat_core.ko
-    insmod /lib/modules/exfat_fs.ko
 
     write /sys/class/android_usb/android0/enable 0
     write /sys/class/android_usb/android0/idVendor 04e8
@@ -47,13 +54,54 @@ on boot
 
     class_start default
 
+on property:sys.powerctl=*
+   powerctl ${sys.powerctl}
+
 service ueventd /sbin/ueventd
+    critical
+
+service healthd /sbin/healthd -n
     critical
 
 service recovery /sbin/recovery
 
 service adbd /sbin/adbd recovery
     disabled
+    socket adbd stream 660 system system
+
+##++ Security R&D Group
+service qrngd /system/bin/qrngd -f
+   class load_ode_env
+   user root
+   group root
+   oneshot
+
+service qseecomd /system/bin/qseecomd
+   class load_ode_env
+   user root
+   group root
+   oneshot
+
+service time_daemon /system/bin/time_daemon
+   class load_cert_env
+   user root
+   group root
+   oneshot
+
+on property:security.recovery=trigger_start_odeenv
+   class_start load_ode_env
+   setprop security.recovery running_ode
+
+on property:security.recovery=trigger_start_certenv
+   class_start load_cert_env
+   setprop security.recovery running_cert
+
+on property:security.recovery=trigger_shutdown_allenv
+   class_reset load_ode_env
+   class_reset load_cert_env
+   setprop security.recovery shutdown_all
+
+##-- Security R&D Group
 
 # Always start adbd on userdebug and eng builds
 on property:ro.debuggable=1
